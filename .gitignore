@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# Frontend
+web/node_modules/
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+
+# Go
+/server
+/bin/
+*.test
+coverage.out
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

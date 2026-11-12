@@ -1,0 +1,7 @@
+.git
+.env
+web/node_modules
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+docs
+*.md

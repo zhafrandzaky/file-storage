@@ -1,0 +1,45 @@
+# All values come from .env (copy .env.example). Required secrets fail fast.
+name: file-storage
+
+services:
+  app:
+    build: .
+    image: ${APP_IMAGE:-file-storage:latest}
+    container_name: file_storage_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      APP_ADDR: ":8000"
+      S3_ENDPOINT: http://rustfs:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
+      S3_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-64}
+    depends_on:
+      - rustfs
+    networks:
+      - storage_net
+
+  rustfs:
+    image: ${RUSTFS_IMAGE:-rustfs/rustfs:latest}
+    container_name: file_storage_rustfs
+    restart: unless-stopped
+    ports:
+      - "${S3_API_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+    volumes:
+      - rustfs_data:/data
+    networks:
+      - storage_net
+
+volumes:
+  rustfs_data:
+
+networks:
+  storage_net:
+    driver: bridge
