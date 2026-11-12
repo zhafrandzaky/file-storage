@@ -1,5 +1,5 @@
 // Package storage wraps an S3-compatible object store (RustFS, MinIO, AWS S3)
-// behind a small API used by the HTTP layer.
+// behind the small set of operations the service needs.
 package storage
 
 import (
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"sort"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,15 +19,12 @@ import (
 	"github.com/zhafrandzaky/file-storage/internal/config"
 )
 
-// ErrNotFound is returned when an object does not exist.
-var ErrNotFound = errors.New("object not found")
-
-// Object describes a stored file.
-type Object struct {
-	Key          string    `json:"key"`
-	Size         int64     `json:"size"`
-	LastModified time.Time `json:"lastModified"`
-}
+var (
+	// ErrNotFound is returned when an object does not exist.
+	ErrNotFound = errors.New("object not found")
+	// ErrShareDisabled is returned when no public endpoint is configured.
+	ErrShareDisabled = errors.New("share links are disabled")
+)
 
 // Download is an open object stream. The caller must close Body.
 type Download struct {
@@ -38,23 +35,32 @@ type Download struct {
 
 // S3 is an S3-backed store bound to a single bucket.
 type S3 struct {
-	client *s3.Client
-	bucket string
+	client    *s3.Client
+	presigner *s3.PresignClient
+	bucket    string
 }
 
 // NewS3 builds a client from configuration. It does not contact the server.
 func NewS3(cfg config.S3) *S3 {
-	client := s3.New(s3.Options{
-		Region:       cfg.Region,
-		BaseEndpoint: aws.String(cfg.Endpoint),
-		UsePathStyle: cfg.UsePathStyle,
-		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
-		// Checksums only when the operation requires them; some
-		// S3-compatible servers reject the SDK's default trailing checksums.
-		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
-		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
-	})
-	return &S3{client: client, bucket: cfg.Bucket}
+	newClient := func(endpoint string) *s3.Client {
+		return s3.New(s3.Options{
+			Region:       cfg.Region,
+			BaseEndpoint: aws.String(endpoint),
+			UsePathStyle: cfg.UsePathStyle,
+			Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+			// Checksums only when the operation requires them; some
+			// S3-compatible servers reject the SDK's default trailing checksums.
+			RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
+			ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
+		})
+	}
+	store := &S3{client: newClient(cfg.Endpoint), bucket: cfg.Bucket}
+	// Presigned URLs embed the host they are signed for, so they must use an
+	// address the browser can reach, not the internal Docker service name.
+	if cfg.PublicEndpoint != "" {
+		store.presigner = s3.NewPresignClient(newClient(cfg.PublicEndpoint))
+	}
+	return store
 }
 
 // Bucket returns the bucket name this store writes to.
@@ -90,27 +96,6 @@ func (s *S3) Ping(ctx context.Context) error {
 	return err
 }
 
-// List returns all objects, newest first.
-func (s *S3) List(ctx context.Context) ([]Object, error) {
-	objects := []Object{}
-	p := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{Bucket: &s.bucket})
-	for p.HasMorePages() {
-		page, err := p.NextPage(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, o := range page.Contents {
-			objects = append(objects, Object{
-				Key:          aws.ToString(o.Key),
-				Size:         aws.ToInt64(o.Size),
-				LastModified: aws.ToTime(o.LastModified),
-			})
-		}
-	}
-	sort.Slice(objects, func(i, j int) bool { return objects[i].LastModified.After(objects[j].LastModified) })
-	return objects, nil
-}
-
 // Put stores r under key, replacing any existing object.
 func (s *S3) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
@@ -132,13 +117,30 @@ func (s *S3) Get(ctx context.Context, key string) (*Download, error) {
 	return &Download{Body: out.Body, ContentType: aws.ToString(out.ContentType), Size: aws.ToInt64(out.ContentLength)}, nil
 }
 
-// Delete removes an object. It returns ErrNotFound if the key does not exist.
+// Delete removes an object. Deleting a missing key is not an error.
 func (s *S3) Delete(ctx context.Context, key string) error {
-	if _, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: &s.bucket, Key: &key}); err != nil {
-		return mapErr(err)
-	}
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: &s.bucket, Key: &key})
 	return err
+}
+
+// ShareEnabled reports whether presigned links can be produced.
+func (s *S3) ShareEnabled() bool { return s.presigner != nil }
+
+// PresignDownload returns a time-limited URL that downloads key directly from
+// object storage, served under the original file name.
+func (s *S3) PresignDownload(ctx context.Context, key, filename string, ttl time.Duration) (string, error) {
+	if s.presigner == nil {
+		return "", ErrShareDisabled
+	}
+	req, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket:                     &s.bucket,
+		Key:                        &key,
+		ResponseContentDisposition: aws.String(fmt.Sprintf("attachment; filename*=UTF-8''%s", url.PathEscape(filename))),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
 }
 
 func mapErr(err error) error {

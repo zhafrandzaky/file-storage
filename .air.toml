@@ -1,0 +1,17 @@
+# Hot reload for the Go server in development (used by compose.dev.yml).
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  bin = "./tmp/server"
+  include_ext = ["go", "sql"]
+  exclude_dir = ["tmp", "web", "data", "docs", "internal/webui/dist"]
+  delay = 500
+  stop_on_error = true
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

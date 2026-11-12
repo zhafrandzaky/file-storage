@@ -1,0 +1,43 @@
+# Development mode with host bind mounts and hot reload.
+# Use together with the base file:
+#   docker compose -f docker-compose.yml -f compose.dev.yml up --build
+#
+# - app: Go source on the host is bind-mounted into the container; air rebuilds
+#   and restarts the server whenever a .go or .sql file changes.
+# - web: the frontend source is bind-mounted; Vite serves it with hot module
+#   replacement on port 5173 and proxies /api to the app container.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: file-storage-dev:latest
+    container_name: file_storage_app_dev
+    healthcheck:
+      disable: true
+    volumes:
+      - ./:/src
+      - go_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+
+  web:
+    image: oven/bun:1-alpine
+    container_name: file_storage_web_dev
+    working_dir: /web
+    command: sh -c "bun install && bun run dev --host 0.0.0.0"
+    environment:
+      API_URL: http://app:8000
+    ports:
+      - "${WEB_DEV_PORT:-5173}:5173"
+    volumes:
+      - ./web:/web
+      - web_node_modules:/web/node_modules
+    depends_on:
+      - app
+    networks:
+      - file_storage_net
+
+volumes:
+  go_cache:
+  go_build_cache:
+  web_node_modules:

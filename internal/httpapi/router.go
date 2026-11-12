@@ -5,81 +5,85 @@ import (
 	"context"
 	"io"
 	"io/fs"
-	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/zhafrandzaky/file-storage/internal/audit"
+	"github.com/zhafrandzaky/file-storage/internal/auth"
+	"github.com/zhafrandzaky/file-storage/internal/files"
 	"github.com/zhafrandzaky/file-storage/internal/storage"
+	"github.com/zhafrandzaky/file-storage/internal/users"
 )
 
-// Store is the storage behaviour the HTTP layer depends on.
-type Store interface {
+// ObjectStore is the object storage behaviour the HTTP layer depends on.
+type ObjectStore interface {
 	Bucket() string
 	Ping(ctx context.Context) error
-	List(ctx context.Context) ([]storage.Object, error)
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
 	Get(ctx context.Context, key string) (*storage.Download, error)
 	Delete(ctx context.Context, key string) error
+	ShareEnabled() bool
+	PresignDownload(ctx context.Context, key, filename string, ttl time.Duration) (string, error)
 }
 
-// Options configures the HTTP layer.
-type Options struct {
-	Store          Store
+// Deps are the collaborators and settings of the HTTP layer.
+type Deps struct {
+	Objects        ObjectStore
+	Files          *files.Store
+	Users          *users.Store
+	Sessions       *auth.Sessions
+	Audit          *audit.Log
+	Policy         files.Policy
 	MaxUploadBytes int64
-	Endpoint       string // shown in the UI header
-	Static         fs.FS  // built web UI; nil disables UI serving
+	ShareMaxTTL    time.Duration
+	CookieSecure   bool
+	Endpoint       string // internal S3 endpoint, shown to admins
+	Static         fs.FS  // built web UI; nil serves the API only
+}
+
+type api struct {
+	Deps
+	throttle *auth.Throttle
 }
 
 // New returns the root handler.
-func New(o Options) http.Handler {
-	h := &handlers{store: o.Store, maxUpload: o.MaxUploadBytes, endpoint: o.Endpoint}
+func New(d Deps) http.Handler {
+	a := &api{Deps: d, throttle: auth.NewThrottle(5, 15*time.Minute)}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", h.health)
-	mux.HandleFunc("GET /api/info", h.info)
-	mux.HandleFunc("GET /api/files", h.list)
-	mux.HandleFunc("POST /api/files", h.upload)
-	mux.HandleFunc("GET /api/files/{key...}", h.download)
-	mux.HandleFunc("DELETE /api/files/{key...}", h.remove)
+	mux.HandleFunc("GET /api/health", a.health)
+
+	mux.HandleFunc("POST /api/auth/login", a.login)
+	mux.Handle("POST /api/auth/logout", a.authed(a.logout))
+	mux.Handle("GET /api/auth/me", a.authed(a.me))
+	mux.Handle("POST /api/auth/password", a.authed(a.changePassword))
+
+	mux.Handle("GET /api/info", a.authed(a.info))
+	mux.Handle("GET /api/files", a.authed(a.listFiles))
+	mux.Handle("POST /api/files", a.authed(a.uploadFiles))
+	mux.Handle("GET /api/files/{id}", a.authed(a.downloadFile))
+	mux.Handle("DELETE /api/files/{id}", a.authed(a.deleteFile))
+	mux.Handle("POST /api/files/{id}/share", a.authed(a.shareFile))
+
+	mux.Handle("GET /api/users", a.admin(a.listUsers))
+	mux.Handle("POST /api/users", a.admin(a.createUser))
+	mux.Handle("PATCH /api/users/{id}", a.admin(a.updateUser))
+	mux.Handle("POST /api/users/{id}/password", a.admin(a.resetPassword))
+	mux.Handle("GET /api/audit", a.admin(a.listAudit))
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "Endpoint tidak ditemukan.")
 	})
-	if o.Static != nil {
-		mux.Handle("/", spa(o.Static))
+	if d.Static != nil {
+		mux.Handle("/", spa(d.Static))
 	}
-	return recoverer(logger(mux))
+	return recoverer(logger(securityHeaders(csrf(mux))))
 }
 
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (r *statusRecorder) WriteHeader(code int) {
-	r.status = code
-	r.ResponseWriter.WriteHeader(code)
-}
-
-func logger(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
-		if r.URL.Path == "/api/health" {
-			return
-		}
-		slog.Info("request", "method", r.Method, "path", r.URL.Path, "status", rec.status, "duration", time.Since(start).Round(time.Millisecond))
-	})
-}
-
-func recoverer(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if v := recover(); v != nil {
-				slog.Error("panic", "value", v, "path", r.URL.Path)
-				writeError(w, http.StatusInternalServerError, "internal", "Terjadi kesalahan di server.")
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
+func (a *api) health(w http.ResponseWriter, r *http.Request) {
+	if err := a.Objects.Ping(r.Context()); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "degraded", "storage": "unreachable"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "storage": "ok"})
 }

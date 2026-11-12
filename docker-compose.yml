@@ -1,4 +1,5 @@
-# All values come from .env (copy .env.example). Required secrets fail fast.
+# Production-style deployment. All values come from .env (copy .env.example).
+# Required values fail fast with a clear message.
 name: file-storage
 
 services:
@@ -11,12 +12,24 @@ services:
       - "${APP_PORT:-8000}:8000"
     environment:
       APP_ADDR: ":8000"
+      DB_PATH: /data/file-storage.db
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       S3_ENDPOINT: http://rustfs:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
       S3_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
       S3_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-64}
+      MAX_FILE_MB: ${MAX_FILE_MB:-25}
+      ALLOWED_EXTENSIONS: ${ALLOWED_EXTENSIONS:-}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+      SHARE_MAX_HOURS: ${SHARE_MAX_HOURS:-168}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - app_data:/data
     depends_on:
       - rustfs
     networks:
@@ -38,6 +51,7 @@ services:
       - file_storage_net
 
 volumes:
+  app_data:
   rustfs_data:
 
 networks:

@@ -1,93 +1,86 @@
 import "./styles.css";
-import { ApiError, deleteFile, getHealth, getInfo, listFiles } from "./api";
+import { auth, errorMessage, getHealth, getInfo, setUnauthorizedHandler } from "./api";
 import { h } from "./dom";
 import { icon } from "./icons";
-import type { ServiceInfo } from "./types";
-import { confirmDelete } from "./ui/confirmDialog";
+import type { ServiceInfo, User } from "./types";
 import { createConnection } from "./ui/connection";
-import { createFileTable } from "./ui/fileTable";
 import { createNotices } from "./ui/notice";
-import { createUploader } from "./ui/uploader";
+import { renderActivity } from "./views/activity";
+import { renderFiles } from "./views/files";
+import { renderLogin } from "./views/login";
+import { renderShell, type Route } from "./views/shell";
+import { renderUsers } from "./views/users";
 
-const message = (err: unknown) => (err instanceof ApiError ? err.message : "Terjadi kesalahan yang tidak terduga.");
+const root = document.getElementById("app")!;
+let teardown: () => void = () => {};
 
-async function bootstrap(root: HTMLElement) {
-  let info: ServiceInfo = { bucket: "", endpoint: "", maxUploadBytes: 64 * 1024 ** 2 };
-  const notices = createNotices();
+function routeFromHash(user: User): Route {
+  const route = location.hash.replace(/^#\//, "");
+  if (user.role === "admin" && (route === "users" || route === "activity")) return route;
+  return "files";
+}
+
+async function start(loginNotice?: string) {
+  teardown();
+  teardown = () => {};
+  let user: User;
+  try {
+    user = loginNotice ? await renderLogin(root, loginNotice) : await auth.me();
+  } catch {
+    user = await renderLogin(root);
+  }
+  await signedIn(user);
+}
+
+async function signedIn(user: User) {
+  let info: ServiceInfo;
   try {
     info = await getInfo();
   } catch (err) {
-    notices.error(message(err));
+    root.replaceChildren(
+      h("main", { class: "wrap" }, h("div", { class: "empty" }, icon("alert"), h("strong", {}, "Aplikasi tidak dapat dimuat"), h("p", {}, errorMessage(err)))),
+    );
+    return;
   }
 
+  const notices = createNotices();
   const connection = createConnection(info);
-
-  const table = createFileTable({
-    async onDelete(key) {
-      if (!(await confirmDelete(key, info.bucket))) return;
+  const shell = renderShell(root, {
+    user,
+    connection,
+    notices,
+    async onLogout() {
       try {
-        await deleteFile(key);
-        notices.success(`${key} berhasil dihapus.`);
-      } catch (err) {
-        notices.error(message(err));
+        await auth.logout();
+      } finally {
+        history.replaceState(null, "", location.pathname);
+        void start();
       }
-      await refresh();
     },
   });
 
-  const uploader = createUploader({
-    maxBytes: info.maxUploadBytes,
-    async onUploaded(keys) {
-      notices.success(keys.length === 1 ? `${keys[0]} berhasil diunggah.` : `${keys.length} berkas berhasil diunggah.`);
-      await refresh();
-    },
-    onError: (msg) => notices.error(msg),
-  });
+  const show = () => {
+    const route = routeFromHash(user);
+    if (location.hash !== `#/${route}`) history.replaceState(null, "", `#/${route}`);
+    shell.setRoute(route);
+    notices.clear();
+    if (route === "users") renderUsers(shell.main, user, notices);
+    else if (route === "activity") renderActivity(shell.main, notices);
+    else renderFiles(shell.main, { user, info, notices, connection });
+  };
+  window.addEventListener("hashchange", show);
 
-  async function refresh() {
-    try {
-      table.render(await listFiles());
-      connection.set(true);
-    } catch (err) {
-      table.failed(message(err), () => {
-        table.loading();
-        void refresh();
-      });
-      connection.set(await getHealth());
-    }
-  }
+  const checkHealth = async () => connection.set(await getHealth());
+  void checkHealth();
+  const timer = window.setInterval(checkHealth, 15000);
 
-  root.replaceChildren(
-    h(
-      "header",
-      { class: "top" },
-      h(
-        "div",
-        { class: "wrap" },
-        h(
-          "div",
-          { class: "brand" },
-          h("div", { class: "brand-mark" }, icon("storage")),
-          h("div", {}, h("h1", {}, "File Storage"), h("p", {}, "Penyimpanan objek kompatibel S3")),
-        ),
-        connection.el,
-      ),
-    ),
-    h(
-      "main",
-      { class: "wrap" },
-      notices.el,
-      uploader,
-      table.el,
-      info.bucket ? h("footer", {}, `Seluruh berkas disimpan sebagai objek di bucket ${info.bucket} pada RustFS.`) : null,
-    ),
-  );
-
-  table.loading();
-  await refresh();
-
-  // Keep the header status in sync with the real storage state.
-  window.setInterval(async () => connection.set(await getHealth()), 15000);
+  teardown = () => {
+    window.removeEventListener("hashchange", show);
+    window.clearInterval(timer);
+    document.querySelectorAll("dialog").forEach((d) => d.remove());
+  };
+  show();
 }
 
-void bootstrap(document.getElementById("app")!);
+setUnauthorizedHandler(() => void start("Sesi Anda telah berakhir. Silakan masuk kembali."));
+void start();

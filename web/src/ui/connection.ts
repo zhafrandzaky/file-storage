@@ -15,9 +15,9 @@ export function createConnection(info: ServiceInfo): Connection {
     h("span", { class: "conn-dot", "aria-hidden": "true" }),
     label,
   );
-  if (info.bucket) {
-    el.title = `Bucket ${info.bucket} pada ${info.endpoint.replace(/^https?:\/\//, "")}`;
-  }
+  el.title = info.endpoint
+    ? `Bucket ${info.bucket} pada ${info.endpoint.replace(/^https?:\/\//, "")}`
+    : `Bucket ${info.bucket}`;
 
   return {
     el,

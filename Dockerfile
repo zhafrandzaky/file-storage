@@ -8,22 +8,26 @@ RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 
-# 2. Backend: Go binary with the built UI embedded
+# 2. Backend: Go binary with the built UI embedded (CGO for SQLite)
 FROM golang:1.25-alpine AS api
+RUN apk add --no-cache gcc musl-dev
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/server ./cmd/server
+RUN CGO_ENABLED=1 go build -trimpath -ldflags "-s -w" -o /out/server ./cmd/server
 
 # 3. Runtime
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata \
-    && adduser -D -H -u 10001 app
+    && adduser -D -H -u 10001 app \
+    && mkdir -p /data && chown app:app /data
 COPY --from=api /out/server /usr/local/bin/server
 USER app
+ENV DB_PATH=/data/file-storage.db
+VOLUME ["/data"]
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s \
   CMD wget -qO- http://127.0.0.1:8000/api/health >/dev/null || exit 1
