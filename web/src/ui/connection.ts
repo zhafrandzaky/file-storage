@@ -6,25 +6,25 @@ export interface Connection {
   set(online: boolean): void;
 }
 
-/** Header indicator: which bucket the app writes to and whether it is reachable. */
+/** Header indicator: a status dot and a single label reflecting real storage reachability. */
 export function createConnection(info: ServiceInfo): Connection {
-  const status = h("strong", {});
-  const detail = h("span", {});
+  const label = h("span", {}, "Memeriksa");
   const el = h(
     "div",
-    { class: "conn", role: "status" },
+    { class: "conn is-checking", role: "status" },
     h("span", { class: "conn-dot", "aria-hidden": "true" }),
-    h("div", { class: "conn-text" }, status, detail),
+    label,
   );
-
-  const host = info.endpoint.replace(/^https?:\/\//, "");
-  detail.textContent = info.bucket ? `Bucket ${info.bucket} pada ${host}` : "Konfigurasi penyimpanan tidak tersedia";
+  if (info.bucket) {
+    el.title = `Bucket ${info.bucket} pada ${info.endpoint.replace(/^https?:\/\//, "")}`;
+  }
 
   return {
     el,
     set(online) {
+      el.classList.remove("is-checking");
       el.classList.toggle("is-down", !online);
-      status.textContent = online ? "Terhubung" : "Penyimpanan tidak terhubung";
+      label.textContent = online ? "Terhubung" : "Terputus";
     },
   };
 }

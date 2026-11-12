@@ -85,6 +85,9 @@ async function bootstrap(root: HTMLElement) {
 
   table.loading();
   await refresh();
+
+  // Keep the header status in sync with the real storage state.
+  window.setInterval(async () => connection.set(await getHealth()), 15000);
 }
 
 void bootstrap(document.getElementById("app")!);
