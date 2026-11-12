@@ -17,11 +17,11 @@ export interface FileTable {
 
 export function createFileTable(opts: FileTableOptions): FileTable {
   const summary = h("p", {});
-  const searchInput = h("input", { type: "search", placeholder: "Cari nama dokumen", autocomplete: "off" });
+  const searchInput = h("input", { type: "search", placeholder: "Cari berdasarkan nama", autocomplete: "off" });
   const search = h(
     "label",
     { class: "search", hidden: true },
-    h("span", { class: "sr-only" }, "Cari dokumen"),
+    h("span", { class: "sr-only" }, "Cari berkas"),
     icon("search"),
     searchInput,
   );
@@ -30,7 +30,7 @@ export function createFileTable(opts: FileTableOptions): FileTable {
   const el = h(
     "section",
     { class: "docs", "aria-labelledby": "docs-title" },
-    h("div", { class: "docs-head" }, h("div", {}, h("h2", { id: "docs-title" }, "Dokumen"), summary), search),
+    h("div", { class: "docs-head" }, h("div", {}, h("h2", { id: "docs-title" }, "Berkas"), summary), search),
     body,
   );
 
@@ -96,27 +96,27 @@ export function createFileTable(opts: FileTableOptions): FileTable {
   return {
     el,
     loading() {
-      summary.textContent = "Memuat daftar dokumen";
-      body.replaceChildren(h("div", { class: "empty", "aria-busy": "true" }, h("p", {}, "Memuat dokumen dari bucket.")));
+      summary.textContent = "Memuat daftar berkas";
+      body.replaceChildren(h("div", { class: "empty", "aria-busy": "true" }, h("p", {}, "Memuat berkas dari bucket.")));
     },
     failed(message, retry) {
-      summary.textContent = "Daftar tidak tersedia";
+      summary.textContent = "Daftar berkas tidak tersedia";
       search.hidden = true;
       const btn = h("button", { class: "btn btn-ghost", type: "button" }, icon("refresh"), "Muat ulang");
       btn.addEventListener("click", retry);
-      body.replaceChildren(emptyState("alert", "Dokumen tidak bisa dimuat", message, btn));
+      body.replaceChildren(emptyState("alert", "Daftar berkas gagal dimuat", message, btn));
     },
     render(list) {
-      summary.textContent = `${list.files.length} dokumen, total ${formatSize(list.totalSize)}`;
+      summary.textContent = `${list.files.length} berkas, total ${formatSize(list.totalSize)}`;
       search.hidden = list.files.length === 0;
       if (list.files.length === 0) {
         rows = [];
         noMatch = null;
-        body.replaceChildren(emptyState("cabinet", "Belum ada dokumen", "Unggah berkas pertama lewat map di atas."));
+        body.replaceChildren(emptyState("cabinet", "Belum ada berkas", "Berkas yang Anda unggah akan tampil di sini."));
         return;
       }
       rows = list.files.map(row);
-      noMatch = emptyState("search", "Tidak ada dokumen yang cocok", "Periksa ejaan atau kosongkan kolom pencarian.");
+      noMatch = emptyState("search", "Tidak ada berkas yang cocok", "Periksa kembali kata kunci atau kosongkan kolom pencarian.");
       noMatch.hidden = true;
       body.replaceChildren(
         h(
@@ -130,7 +130,7 @@ export function createFileTable(opts: FileTableOptions): FileTable {
               {},
               h("th", { scope: "col" }, "Nama"),
               h("th", { scope: "col", class: "num col-size" }, "Ukuran"),
-              h("th", { scope: "col", class: "col-when" }, "Diunggah"),
+              h("th", { scope: "col", class: "col-when" }, "Terakhir diubah"),
               h("th", { scope: "col" }, h("span", { class: "sr-only" }, "Aksi")),
             ),
           ),

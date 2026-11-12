@@ -24,7 +24,7 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(input, init);
   } catch {
-    throw new ApiError("Server aplikasi tidak bisa dihubungi. Periksa container aplikasi.", 0, "network");
+    throw new ApiError("Server aplikasi tidak dapat dihubungi. Periksa layanan aplikasi.", 0, "network");
   }
   if (!res.ok) throw await parseError(res);
   return (res.status === 204 ? undefined : await res.json()) as T;
@@ -34,6 +34,16 @@ export const fileUrl = (key: string, download = false) =>
   `/api/files/${encodeURIComponent(key)}${download ? "?download" : ""}`;
 
 export const getInfo = () => request<ServiceInfo>("/api/info");
+
+/** True when the app can reach its bucket. Never throws. */
+export async function getHealth(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/health");
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 export const listFiles = () => request<FileList>("/api/files");
 
@@ -60,7 +70,7 @@ export function uploadFiles(files: File[], onProgress: (fraction: number) => voi
         reject(new ApiError(err?.message ?? `Server membalas ${xhr.status}.`, xhr.status, err?.code ?? "unknown"));
       }
     };
-    xhr.onerror = () => reject(new ApiError("Koneksi terputus saat mengunggah.", 0, "network"));
+    xhr.onerror = () => reject(new ApiError("Koneksi terputus saat mengunggah. Silakan coba lagi.", 0, "network"));
     xhr.send(form);
   });
 }

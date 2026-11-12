@@ -1,6 +1,6 @@
 # File Storage
 
-Portal arsip dokumen kantor yang menyimpan berkas di object storage S3 (RustFS). Dibuat sebagai modular monolith: satu binary Go berisi API dan UI TypeScript yang sudah di-*build*, dijalankan berdampingan dengan RustFS lewat Docker Compose.
+Layanan penyimpanan berkas berbasis object storage kompatibel S3 (RustFS). Dibuat sebagai modular monolith: satu binary Go berisi API dan UI TypeScript yang sudah di-*build*, dijalankan berdampingan dengan RustFS lewat Docker Compose.
 
 ![Tampilan aplikasi](docs/screenshot.png)
 
@@ -12,7 +12,7 @@ Browser ──HTTP──> file_storage_app (Go, :8000) ──S3 API──> file_
                    └─ /        UI (TypeScript, embedded)
 ```
 
-Aplikasi tidak menyimpan berkas di disknya sendiri. Semua dokumen menjadi objek di bucket RustFS, jadi container aplikasi bisa dihapus dan dibuat ulang tanpa kehilangan data.
+Aplikasi tidak menyimpan berkas di disknya sendiri. Semua berkas menjadi objek di bucket RustFS, jadi container aplikasi bisa dihapus dan dibuat ulang tanpa kehilangan data.
 
 ## Struktur
 
@@ -24,7 +24,7 @@ internal/httpapi/      router, handler JSON API, middleware log, serve UI
 internal/webui/        embed hasil build frontend ke binary
 web/                   frontend TypeScript + Vite (Bun)
   src/api.ts           client API bertipe, upload dengan progress
-  src/ui/              komponen: uploader, tabel dokumen, notifikasi, dialog
+  src/ui/              komponen: uploader, tabel berkas, status koneksi, notifikasi, dialog
   src/icons.ts         ikon SVG
 Dockerfile             3 tahap: build UI (Bun) → build Go → image runtime Alpine
 docker-compose.yml     app + RustFS, semua nilai dari .env
@@ -99,10 +99,10 @@ docker pull amazon/aws-cli:latest
 |---|---|---|
 | `GET` | `/api/health` | Status aplikasi dan koneksi ke bucket |
 | `GET` | `/api/info` | Nama bucket, endpoint, batas unggah |
-| `GET` | `/api/files` | Daftar dokumen, terbaru di atas |
+| `GET` | `/api/files` | Daftar berkas, terbaru di atas |
 | `POST` | `/api/files` | Unggah (multipart, field `files`, bisa banyak) |
-| `GET` | `/api/files/{nama}` | Buka dokumen; tambahkan `?download` untuk mengunduh |
-| `DELETE` | `/api/files/{nama}` | Hapus dokumen |
+| `GET` | `/api/files/{nama}` | Buka berkas; tambahkan `?download` untuk mengunduh |
+| `DELETE` | `/api/files/{nama}` | Hapus berkas |
 
 Contoh:
 

@@ -35,8 +35,8 @@ export function createUploader(opts: UploaderOptions): HTMLElement {
 
   const form = h(
     "form",
-    { class: "folder", "aria-label": "Unggah dokumen" },
-    h("div", { class: "folder-tab", "aria-hidden": "true" }, "Unggah dokumen"),
+    { class: "folder", "aria-label": "Unggah berkas" },
+    h("div", { class: "folder-tab", "aria-hidden": "true" }, "Unggah berkas"),
     drop,
   );
 
@@ -45,14 +45,14 @@ export function createUploader(opts: UploaderOptions): HTMLElement {
 
   const render = () => {
     if (selected.length === 0) {
-      title.textContent = "Tarik berkas ke sini";
-      hint.textContent = `PDF, gambar, dokumen, atau spreadsheet. Maksimal ${limitMB} MB per unggahan.`;
+      title.textContent = "Tarik dan lepas berkas di area ini";
+      hint.textContent = `Semua jenis berkas didukung. Ukuran maksimal ${limitMB} MB per unggahan.`;
     } else {
       title.textContent = selected.length === 1 ? selected[0].name : `${selected.length} berkas dipilih`;
       hint.textContent =
         total() > opts.maxBytes
-          ? `Total ${formatSize(total())} melebihi batas ${limitMB} MB. Kurangi jumlah berkas.`
-          : `Total ${formatSize(total())}. Klik Unggah untuk menyimpan ke bucket.`;
+          ? `Total ${formatSize(total())} melebihi batas ${limitMB} MB. Kurangi jumlah berkas yang dipilih.`
+          : `Total ${formatSize(total())}. Pilih Unggah untuk menyimpan ke bucket.`;
     }
     submit.disabled = busy || selected.length === 0 || total() > opts.maxBytes;
     label.textContent = busy ? "Mengunggah" : "Unggah";
@@ -97,7 +97,7 @@ export function createUploader(opts: UploaderOptions): HTMLElement {
       input.value = "";
       opts.onUploaded(keys);
     } catch (err) {
-      opts.onError(err instanceof ApiError ? err.message : "Unggahan gagal. Coba lagi.");
+      opts.onError(err instanceof ApiError ? err.message : "Unggahan gagal. Silakan coba lagi.");
     } finally {
       busy = false;
       progress.hidden = true;

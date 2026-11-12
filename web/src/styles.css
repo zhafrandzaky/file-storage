@@ -1,4 +1,4 @@
-/* Arsip Dokumen Kantor: manila-folder upload, archive-green ink, one quiet table. */
+/* File Storage: manila-folder upload, archive-green ink, one quiet table. */
 :root {
   --page: #F2F4F2;
   --surface: #FFFFFF;
@@ -39,7 +39,12 @@ a { color: inherit; }
 .brand p { margin: 0; font-size: 13px; color: var(--muted); }
 .conn { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #3C8A5F; box-shadow: 0 0 0 3px #DDEEE3; }
-.conn code { font-family: inherit; color: var(--ink); }
+.conn { align-items: flex-start; text-align: right; }
+.conn-dot { margin-top: 6px; }
+.conn-text { display: grid; line-height: 1.35; }
+.conn-text strong { font-weight: 500; color: var(--ink); }
+.conn.is-down .conn-dot { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.conn.is-down .conn-text strong { color: var(--danger); }
 
 main.wrap { padding-top: 32px; padding-bottom: 64px; }
 

@@ -59,7 +59,7 @@ func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
 	files, err := h.store.List(r.Context())
 	if err != nil {
 		slog.Error("list objects", "err", err)
-		writeError(w, http.StatusBadGateway, "storage_unavailable", "Penyimpanan tidak merespons. Periksa container RustFS, lalu muat ulang halaman.")
+		writeError(w, http.StatusBadGateway, "storage_unavailable", "Penyimpanan tidak merespons. Periksa layanan RustFS, lalu muat ulang halaman.")
 		return
 	}
 	var total int64
@@ -75,7 +75,7 @@ func (h *handlers) upload(w http.ResponseWriter, r *http.Request) {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			writeError(w, http.StatusRequestEntityTooLarge, "too_large",
-				fmt.Sprintf("Ukuran unggahan melebihi %d MB. Unggah berkas dalam beberapa bagian.", h.maxUpload>>20))
+				fmt.Sprintf("Ukuran unggahan melebihi batas %d MB. Unggah berkas secara bertahap.", h.maxUpload>>20))
 			return
 		}
 		writeError(w, http.StatusBadRequest, "bad_request", "Format unggahan tidak valid.")
@@ -98,7 +98,7 @@ func (h *handlers) upload(w http.ResponseWriter, r *http.Request) {
 		}
 		f, err := part.Open()
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "bad_request", "Berkas tidak bisa dibaca.")
+			writeError(w, http.StatusBadRequest, "bad_request", "Berkas tidak dapat dibaca.")
 			return
 		}
 		ct := part.Header.Get("Content-Type")
@@ -109,7 +109,7 @@ func (h *handlers) upload(w http.ResponseWriter, r *http.Request) {
 		f.Close()
 		if err != nil {
 			slog.Error("put object", "key", key, "err", err)
-			writeError(w, http.StatusBadGateway, "storage_unavailable", "Penyimpanan tidak merespons. Periksa container RustFS, lalu coba lagi.")
+			writeError(w, http.StatusBadGateway, "storage_unavailable", "Penyimpanan tidak merespons. Periksa layanan RustFS, lalu coba lagi.")
 			return
 		}
 		uploaded = append(uploaded, key)
@@ -121,7 +121,7 @@ func (h *handlers) download(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	obj, err := h.store.Get(r.Context(), key)
 	if errors.Is(err, storage.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not_found", "Dokumen tidak ditemukan.")
+		writeError(w, http.StatusNotFound, "not_found", "Berkas tidak ditemukan.")
 		return
 	}
 	if err != nil {
@@ -152,7 +152,7 @@ func (h *handlers) remove(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	err := h.store.Delete(r.Context(), key)
 	if errors.Is(err, storage.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not_found", "Dokumen tidak ditemukan.")
+		writeError(w, http.StatusNotFound, "not_found", "Berkas tidak ditemukan.")
 		return
 	}
 	if err != nil {

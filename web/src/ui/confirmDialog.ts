@@ -1,9 +1,9 @@
 import { h } from "../dom";
 
-/** Asks the user to confirm deleting a document. Resolves true on confirm. */
-export function confirmDelete(name: string): Promise<boolean> {
+/** Asks the user to confirm deleting a file. Resolves true on confirm. */
+export function confirmDelete(name: string, bucket: string): Promise<boolean> {
   const cancel = h("button", { class: "btn btn-ghost", value: "cancel" }, "Batal");
-  const ok = h("button", { class: "btn btn-danger", value: "ok" }, "Hapus");
+  const ok = h("button", { class: "btn btn-danger", value: "ok" }, "Hapus berkas");
   const dialog = h(
     "dialog",
     { "aria-labelledby": "confirm-title" },
@@ -13,8 +13,8 @@ export function confirmDelete(name: string): Promise<boolean> {
       h(
         "div",
         { class: "dlg-body" },
-        h("h3", { id: "confirm-title" }, "Hapus dokumen?"),
-        h("p", {}, h("b", {}, name), " akan dihapus permanen dari bucket."),
+        h("h3", { id: "confirm-title" }, "Hapus berkas?"),
+        h("p", {}, h("b", {}, name), ` akan dihapus secara permanen dari bucket ${bucket}. Tindakan ini tidak dapat dibatalkan.`),
       ),
       h("div", { class: "dlg-foot" }, cancel, ok),
     ),
