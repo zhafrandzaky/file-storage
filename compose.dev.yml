@@ -1,43 +1,97 @@
-# Development mode with host bind mounts and hot reload.
-# Use together with the base file:
-#   docker compose -f docker-compose.yml -f compose.dev.yml up --build
+# Development stack, fully separate from production (docker-compose.yml):
+# its own project name, containers, ports, network and volumes. Both stacks
+# can run at the same time on one host.
+#
+#   docker compose -f compose.dev.yml up -d --build
 #
 # - app: Go source on the host is bind-mounted into the container; air rebuilds
 #   and restarts the server whenever a .go or .sql file changes.
 # - web: the frontend source is bind-mounted; Vite serves it with hot module
-#   replacement on port 5173 and proxies /api to the app container.
+#   replacement and proxies /api to the dev app.
+# - rustfs: a separate RustFS instance with its own data.
+#
+# Secrets are read from the same .env as production; ports and the public
+# endpoint use the DEV_* variables.
+name: file-storage-dev
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile.dev
     image: file-storage-dev:latest
-    container_name: file_storage_app_dev
-    healthcheck:
-      disable: true
+    container_name: file_storage_dev_app
+    restart: unless-stopped
+    ports:
+      - "${DEV_APP_PORT:-8100}:8000"
+    environment:
+      APP_ADDR: ":8000"
+      DB_PATH: /data/file-storage.db
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      S3_ENDPOINT: http://rustfs:9000
+      S3_PUBLIC_ENDPOINT: ${DEV_S3_PUBLIC_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
+      S3_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-64}
+      MAX_FILE_MB: ${MAX_FILE_MB:-25}
+      ALLOWED_EXTENSIONS: ${ALLOWED_EXTENSIONS:-}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+      SHARE_MAX_HOURS: ${SHARE_MAX_HOURS:-168}
+      COOKIE_SECURE: "false"
     volumes:
       - ./:/src
+      - app_data:/data
       - go_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
+    depends_on:
+      - rustfs
+    networks:
+      - file_storage_dev_net
 
   web:
     image: oven/bun:1-alpine
-    container_name: file_storage_web_dev
+    container_name: file_storage_dev_web
+    restart: unless-stopped
     working_dir: /web
     command: sh -c "bun install && bun run dev --host 0.0.0.0"
     environment:
       API_URL: http://app:8000
     ports:
-      - "${WEB_DEV_PORT:-5173}:5173"
+      - "${DEV_WEB_PORT:-5173}:5173"
     volumes:
       - ./web:/web
       - web_node_modules:/web/node_modules
     depends_on:
       - app
     networks:
-      - file_storage_net
+      - file_storage_dev_net
+
+  rustfs:
+    image: ${RUSTFS_IMAGE:-rustfs/rustfs:latest}
+    container_name: file_storage_dev_rustfs
+    restart: unless-stopped
+    ports:
+      - "${DEV_S3_API_PORT:-9100}:9000"
+      - "${DEV_S3_CONSOLE_PORT:-9101}:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+    volumes:
+      - rustfs_data:/data
+    networks:
+      - file_storage_dev_net
 
 volumes:
+  app_data:
+  rustfs_data:
   go_cache:
   go_build_cache:
   web_node_modules:
+
+networks:
+  file_storage_dev_net:
+    driver: bridge

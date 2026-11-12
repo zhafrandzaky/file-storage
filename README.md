@@ -53,8 +53,8 @@ web/                   frontend TypeScript + Vite (Bun), tanpa framework
   src/ui/              komponen: uploader, dialog, tautan berbagi, notifikasi, status
 Dockerfile             produksi, 3 tahap: build UI → build Go → runtime Alpine
 Dockerfile.dev         development: Go + air untuk hot reload
-docker-compose.yml     app + RustFS, semua nilai dari .env
-compose.dev.yml        mode development dengan bind mount dari host
+docker-compose.yml     stack produksi: app + RustFS, semua nilai dari .env
+compose.dev.yml        stack development terpisah: bind mount, hot reload, RustFS sendiri
 ```
 
 ## Konfigurasi
@@ -77,7 +77,9 @@ Semua konfigurasi lewat `.env` (salin dari `.env.example`). File `.env` tidak ik
 | `SESSION_TTL_HOURS` | tidak | `12` | Lama sesi masuk |
 | `SHARE_MAX_HOURS` | tidak | `168` | Masa berlaku maksimum tautan berbagi (batas S3: 7 hari) |
 | `COOKIE_SECURE` | tidak | `false` | Isi `true` jika aplikasi diakses lewat HTTPS |
-| `APP_PORT`, `S3_API_PORT`, `S3_CONSOLE_PORT`, `WEB_DEV_PORT` | tidak | `8000`, `9000`, `9001`, `5173` | Port di host |
+| `APP_PORT`, `S3_API_PORT`, `S3_CONSOLE_PORT` | tidak | `8000`, `9000`, `9001` | Port produksi di host |
+| `DEV_APP_PORT`, `DEV_WEB_PORT`, `DEV_S3_API_PORT`, `DEV_S3_CONSOLE_PORT` | tidak | `8100`, `5173`, `9100`, `9101` | Port stack development |
+| `DEV_S3_PUBLIC_ENDPOINT` | tidak | kosong | Alamat RustFS dev untuk tautan berbagi di stack development |
 
 Akun administrator awal hanya dibuat jika emailnya belum terdaftar. Mengubah `ADMIN_PASSWORD` setelah itu tidak mengubah kata sandi akun yang sudah ada; gunakan menu Ganti kata sandi.
 
@@ -106,21 +108,50 @@ Akses dari browser:
 - Aplikasi: `http://<IP_SERVER>:8000`, masuk dengan `ADMIN_EMAIL` dan `ADMIN_PASSWORD`
 - RustFS Console: `http://<IP_SERVER>:9001`, masuk dengan `RUSTFS_ACCESS_KEY` dan `RUSTFS_SECRET_KEY`
 
-## Mode development (bind mount dan hot reload)
+## Mode development (stack terpisah, bind mount, hot reload)
 
-Kode di host di-*mount* langsung ke container, jadi perubahan langsung terlihat tanpa build ulang image:
+`compose.dev.yml` adalah stack tersendiri (project `file-storage-dev`) dengan container, port, network, dan volume sendiri. Stack ini bisa berjalan bersamaan dengan produksi tanpa saling mengganggu, dan datanya tidak tercampur.
 
 ```bash
-docker compose -f docker-compose.yml -f compose.dev.yml up --build
+docker compose -f compose.dev.yml up -d --build
+docker compose -f compose.dev.yml ps
 ```
 
-| Service | Isi | Akses |
+| Container | Isi | Akses |
 |---|---|---|
-| `file_storage_app_dev` | `./` di-mount ke `/src`; `air` membangun ulang dan me-restart server setiap file `.go` atau `.sql` berubah | API `http://<IP_SERVER>:8000/api` |
-| `file_storage_web_dev` | `./web` di-mount ke `/web`; Vite dengan hot module replacement, `/api` diteruskan ke app | UI `http://<IP_SERVER>:5173` |
-| `file_storage_rustfs` | sama seperti mode produksi | `:9000`, `:9001` |
+| `file_storage_dev_web` | `./web` di-mount ke `/web`; Vite dengan hot module replacement, `/api` diteruskan ke app dev | UI `http://<IP_SERVER>:5173` |
+| `file_storage_dev_app` | `./` di-mount ke `/src`; `air` membangun ulang dan me-restart server setiap file `.go` atau `.sql` berubah | API `http://<IP_SERVER>:8100/api` |
+| `file_storage_dev_rustfs` | RustFS terpisah dengan data sendiri | S3 `:9100`, Console `:9101` |
 
-Mode development memakai volume `app_data` dan `rustfs_data` yang sama dengan mode produksi.
+Isi `DEV_S3_PUBLIC_ENDPOINT` (misalnya `http://192.168.122.100:9100`) agar tautan berbagi aktif di stack dev.
+
+| | Produksi | Development |
+|---|---|---|
+| Perintah | `docker compose ...` | `docker compose -f compose.dev.yml ...` |
+| Kode | di-*build* ke dalam image | di-*mount* dari host, berubah langsung |
+| UI | `:8000` | `:5173` |
+| RustFS | `:9000`, `:9001` | `:9100`, `:9101` |
+| Volume | `file-storage_app_data`, `file-storage_rustfs_data` | `file-storage-dev_app_data`, `file-storage-dev_rustfs_data` |
+
+### Alur dari development ke produksi
+
+1. Ubah kode di folder project. Perubahan langsung terlihat di stack dev (`:5173`).
+2. Jalankan tes: `docker compose -f compose.dev.yml exec app go test ./...`
+3. Simpan perubahan: `git add -A && git commit -m "..." && git push`
+4. Build ulang dan jalankan produksi dari kode yang sama:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   Hanya container app produksi yang dibuat ulang. Data produksi tetap, dan migrasi database baru dijalankan otomatis saat start.
+
+Menghentikan stack dev tanpa menyentuh produksi:
+
+```bash
+docker compose -f compose.dev.yml down        # data dev tetap
+docker compose -f compose.dev.yml down -v     # hapus data dev saja
+```
 
 ### Lewat Portainer
 
@@ -140,9 +171,9 @@ Jalankan sekali saat masih ada internet:
 docker compose pull rustfs
 docker compose build
 docker pull amazon/aws-cli:latest
-# jika ingin memakai mode development:
-docker compose -f docker-compose.yml -f compose.dev.yml build
-docker pull oven/bun:1-alpine
+# jika ingin memakai stack development:
+docker compose -f compose.dev.yml build
+docker compose -f compose.dev.yml pull web rustfs
 ```
 
 ## API
