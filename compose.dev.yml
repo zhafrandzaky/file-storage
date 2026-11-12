@@ -25,6 +25,9 @@ services:
     ports:
       - "${DEV_APP_PORT:-8100}:8000"
     environment:
+      # The bind-mounted repo is owned by the host user; skip git metadata so
+      # the build does not fail with "dubious ownership" inside the container.
+      GOFLAGS: -buildvcs=false
       APP_ADDR: ":8000"
       DB_PATH: /data/file-storage.db
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}

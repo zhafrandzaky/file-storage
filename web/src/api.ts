@@ -20,12 +20,19 @@ export const setUnauthorizedHandler = (fn: () => void) => {
 // requests without it as a CSRF defence.
 const CSRF = { "X-Requested-With": "file-storage" };
 
+const unavailable = "Server aplikasi belum siap atau tidak dapat dihubungi. Coba lagi beberapa saat.";
+
+function fallbackMessage(status: number): string {
+  return status >= 500 ? unavailable : `Permintaan gagal diproses (kode ${status}).`;
+}
+
 async function toError(res: Response): Promise<ApiError> {
   try {
     const body = await res.json();
-    return new ApiError(body.error?.message ?? res.statusText, res.status, body.error?.code ?? "unknown");
+    return new ApiError(body.error?.message ?? fallbackMessage(res.status), res.status, body.error?.code ?? "unknown");
   } catch {
-    return new ApiError(`Server membalas ${res.status}.`, res.status, "unknown");
+    // Not our JSON error format: usually a proxy reporting the API is down.
+    return new ApiError(fallbackMessage(res.status), res.status, "unavailable");
   }
 }
 
@@ -39,7 +46,7 @@ async function request<T>(method: string, path: string, body?: unknown, handle40
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError("Server aplikasi tidak dapat dihubungi. Periksa layanan aplikasi.", 0, "network");
+    throw new ApiError(unavailable, 0, "network");
   }
   if (!res.ok) {
     const err = await toError(res);
@@ -97,7 +104,7 @@ export const filesApi = {
         if (xhr.status === 201) return resolve(xhr.response.uploaded as StoredFile[]);
         if (xhr.status === 401) onUnauthorized();
         const err = xhr.response?.error;
-        reject(new ApiError(err?.message ?? `Server membalas ${xhr.status}.`, xhr.status, err?.code ?? "unknown"));
+        reject(new ApiError(err?.message ?? fallbackMessage(xhr.status), xhr.status, err?.code ?? "unknown"));
       };
       xhr.onerror = () => reject(new ApiError("Koneksi terputus saat mengunggah. Silakan coba lagi.", 0, "network"));
       xhr.send(form);
