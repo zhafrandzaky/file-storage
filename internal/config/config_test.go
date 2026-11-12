@@ -24,7 +24,7 @@ func TestLoadRequiresS3Settings(t *testing.T) {
 func TestLoadAppliesOptionalDefaults(t *testing.T) {
 	cfg, err := load(env(map[string]string{
 		"S3_ENDPOINT":   "http://rustfs:9000",
-		"S3_BUCKET":     "docs",
+		"S3_BUCKET":     "files",
 		"S3_ACCESS_KEY": "a",
 		"S3_SECRET_KEY": "b",
 	}))

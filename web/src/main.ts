@@ -67,7 +67,7 @@ async function bootstrap(root: HTMLElement) {
         h(
           "div",
           { class: "brand" },
-          h("div", { class: "brand-mark" }, icon("cabinet")),
+          h("div", { class: "brand-mark" }, icon("storage")),
           h("div", {}, h("h1", {}, "File Storage"), h("p", {}, "Penyimpanan objek kompatibel S3")),
         ),
         connection.el,

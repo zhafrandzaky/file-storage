@@ -20,7 +20,7 @@ services:
     depends_on:
       - rustfs
     networks:
-      - storage_net
+      - file_storage_net
 
   rustfs:
     image: ${RUSTFS_IMAGE:-rustfs/rustfs:latest}
@@ -35,11 +35,11 @@ services:
     volumes:
       - rustfs_data:/data
     networks:
-      - storage_net
+      - file_storage_net
 
 volumes:
   rustfs_data:
 
 networks:
-  storage_net:
+  file_storage_net:
     driver: bridge

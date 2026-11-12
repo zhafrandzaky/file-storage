@@ -107,9 +107,9 @@ docker pull amazon/aws-cli:latest
 Contoh:
 
 ```bash
-curl -F "files=@laporan.pdf" localhost:8000/api/files
+curl -F "files=@example.pdf" localhost:8000/api/files
 curl localhost:8000/api/files
-curl -X DELETE localhost:8000/api/files/laporan.pdf
+curl -X DELETE localhost:8000/api/files/example.pdf
 ```
 
 Error selalu berbentuk `{"error": {"code": "...", "message": "..."}}`.
@@ -127,7 +127,7 @@ docker run --rm --network container:file_storage_rustfs \
 
 ```bash
 # backend (butuh RustFS atau S3 lain yang berjalan)
-S3_ENDPOINT=http://localhost:9000 S3_BUCKET=office-documents \
+S3_ENDPOINT=http://localhost:9000 S3_BUCKET=file-storage \
 S3_ACCESS_KEY=... S3_SECRET_KEY=... go run ./cmd/server
 
 # frontend dengan hot reload, proxy /api ke :8000

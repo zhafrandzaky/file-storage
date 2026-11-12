@@ -1,4 +1,4 @@
-/* File Storage: manila-folder upload, archive-green ink, one quiet table. */
+/* File Storage UI: one tabbed upload panel, one quiet file table. */
 :root {
   --page: #F2F4F2;
   --surface: #FFFFFF;
@@ -9,9 +9,9 @@
   --accent: #2F5D50;
   --accent-hover: #244A40;
   --accent-soft: #E6EEEB;
-  --manila: #EBDDBB;
-  --manila-edge: #D6C394;
-  --manila-ink: #5A4A26;
+  --upload-bg: #EBDDBB;
+  --upload-border: #D6C394;
+  --upload-ink: #5A4A26;
   --danger: #A63D32;
   --danger-soft: #F8EBE9;
   --radius-s: 4px;
@@ -58,31 +58,31 @@ main.wrap { padding-top: 32px; padding-bottom: 64px; }
 .notice.ok { background: var(--accent-soft); border-color: #C9DAD4; color: var(--accent-hover); }
 .notice.err { background: var(--danger-soft); border-color: #EBCBC6; color: var(--danger); }
 
-/* Upload folder: the one memorable element */
-.folder { position: relative; margin-top: 18px; margin-bottom: 32px; }
-.folder-tab {
+/* Upload panel: the one prominent element */
+.upload-panel { position: relative; margin-top: 18px; margin-bottom: 32px; }
+.upload-tab {
   position: absolute; top: -18px; left: 0; height: 19px; padding: 0 16px 0 14px;
-  background: var(--manila); border: 1px solid var(--manila-edge); border-bottom: 0;
+  background: var(--upload-bg); border: 1px solid var(--upload-border); border-bottom: 0;
   border-radius: var(--radius-m) var(--radius-m) 0 0;
-  font-size: 12px; font-weight: 600; color: var(--manila-ink); line-height: 18px;
+  font-size: 12px; font-weight: 600; color: var(--upload-ink); line-height: 18px;
 }
-.drop {
+.dropzone {
   display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  background: var(--manila); border: 1px solid var(--manila-edge);
+  background: var(--upload-bg); border: 1px solid var(--upload-border);
   border-radius: 0 var(--radius-m) var(--radius-m) var(--radius-m);
   padding: 22px 24px;
   transition: background-color .15s, border-color .15s;
 }
-.drop.is-over { background: #E3D2A8; border-color: var(--manila-ink); }
-.drop-icon { width: 44px; height: 44px; border-radius: var(--radius-m); background: rgba(255,255,255,.55); display: grid; place-items: center; color: var(--manila-ink); }
-.drop-icon .icon { width: 22px; height: 22px; }
-.drop-text { flex: 1 1 260px; color: var(--manila-ink); }
-.drop-text strong { display: block; font-size: 15px; font-weight: 600; color: #3E331A; }
-.drop-text span { font-size: 13px; }
+.dropzone.is-over { background: #E3D2A8; border-color: var(--upload-ink); }
+.dropzone-icon { width: 44px; height: 44px; border-radius: var(--radius-m); background: rgba(255,255,255,.55); display: grid; place-items: center; color: var(--upload-ink); }
+.dropzone-icon .icon { width: 22px; height: 22px; }
+.dropzone-text { flex: 1 1 260px; color: var(--upload-ink); }
+.dropzone-text strong { display: block; font-size: 15px; font-weight: 600; color: #3E331A; }
+.dropzone-text span { font-size: 13px; }
 .progress { height: 4px; margin-top: 10px; border-radius: 2px; background: rgba(90,74,38,.18); overflow: hidden; max-width: 420px; }
 .progress[hidden] { display: none; }
 .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .15s linear; }
-.drop-actions { display: flex; gap: 8px; align-items: center; }
+.dropzone-actions { display: flex; gap: 8px; align-items: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Buttons */
@@ -95,7 +95,7 @@ main.wrap { padding-top: 32px; padding-bottom: 64px; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:disabled { background: #8FA59E; cursor: not-allowed; }
-.btn-plain { background: rgba(255,255,255,.7); border-color: var(--manila-edge); color: #3E331A; }
+.btn-plain { background: rgba(255,255,255,.7); border-color: var(--upload-border); color: #3E331A; }
 .btn-plain:hover { background: #fff; }
 .btn-ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
 .btn-ghost:hover { background: var(--page); }
@@ -103,10 +103,10 @@ main.wrap { padding-top: 32px; padding-bottom: 64px; }
 .btn-danger:hover { background: #8C3229; }
 
 /* Documents */
-.docs { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); }
-.docs-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--line); }
-.docs-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
-.docs-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.file-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); }
+.file-list-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.file-list-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.file-list-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 .search { position: relative; }
 .search .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); }
 .search input {
@@ -166,7 +166,7 @@ footer { font-size: 12px; color: var(--muted); margin-top: 16px; }
   .wrap { padding: 0 16px; }
   .conn { display: none; }
   .search, .search input { width: 100%; }
-  .docs-head > div:first-child { width: 100%; }
+  .file-list-head > div:first-child { width: 100%; }
   .col-when, .when { display: none; }
   .name small { display: block; }
   th, td { padding-left: 14px; padding-right: 14px; }

@@ -93,7 +93,7 @@ func TestUploadListDownloadDelete(t *testing.T) {
 	srv := newServer(newMemStore(), 1<<20)
 	defer srv.Close()
 
-	resp := uploadReq(t, srv.URL, map[string]string{"laporan akhir.pdf": "isi laporan"})
+	resp := uploadReq(t, srv.URL, map[string]string{"annual report.pdf": "report body"})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("upload status = %d", resp.StatusCode)
 	}
@@ -104,20 +104,20 @@ func TestUploadListDownloadDelete(t *testing.T) {
 		TotalSize int64            `json:"totalSize"`
 	}
 	json.NewDecoder(resp.Body).Decode(&list)
-	if len(list.Files) != 1 || list.Files[0].Key != "laporan akhir.pdf" || list.TotalSize != 11 {
+	if len(list.Files) != 1 || list.Files[0].Key != "annual report.pdf" || list.TotalSize != 11 {
 		t.Fatalf("unexpected list: %+v", list)
 	}
 
-	resp, _ = http.Get(srv.URL + "/api/files/laporan%20akhir.pdf?download")
+	resp, _ = http.Get(srv.URL + "/api/files/annual%20report.pdf?download")
 	b, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK || string(b) != "isi laporan" {
+	if resp.StatusCode != http.StatusOK || string(b) != "report body" {
 		t.Fatalf("download = %d %q", resp.StatusCode, b)
 	}
-	if cd := resp.Header.Get("Content-Disposition"); cd != "attachment; filename*=UTF-8''laporan%20akhir.pdf" {
+	if cd := resp.Header.Get("Content-Disposition"); cd != "attachment; filename*=UTF-8''annual%20report.pdf" {
 		t.Errorf("Content-Disposition = %q", cd)
 	}
 
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/files/laporan%20akhir.pdf", nil)
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/files/annual%20report.pdf", nil)
 	resp, _ = http.DefaultClient.Do(req)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete status = %d", resp.StatusCode)
@@ -131,7 +131,7 @@ func TestUploadListDownloadDelete(t *testing.T) {
 func TestUploadRejectsOversizedBody(t *testing.T) {
 	srv := newServer(newMemStore(), 1024)
 	defer srv.Close()
-	resp := uploadReq(t, srv.URL, map[string]string{"besar.bin": string(make([]byte, 4096))})
+	resp := uploadReq(t, srv.URL, map[string]string{"large.bin": string(make([]byte, 4096))})
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want 413", resp.StatusCode)
 	}
@@ -148,9 +148,9 @@ func TestUploadRequiresFiles(t *testing.T) {
 
 func TestCleanKey(t *testing.T) {
 	cases := map[string]string{
-		"../../etc/passwd":      "passwd",
-		`C:\Users\a\surat.docx`: "surat.docx",
-		"  spasi.txt ":          "spasi.txt",
+		"../../etc/passwd":         "passwd",
+		`C:\Users\a\contract.docx`: "contract.docx",
+		"  notes.txt ":             "notes.txt",
 	}
 	for in, want := range cases {
 		if got, ok := cleanKey(in); !ok || got != want {

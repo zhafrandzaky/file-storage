@@ -25,19 +25,19 @@ export function createUploader(opts: UploaderOptions): HTMLElement {
   const submit = h("button", { class: "btn btn-primary", type: "submit", disabled: true }, icon("upload"), h("span", {}, "Unggah"));
   const label = submit.querySelector("span")!;
 
-  const drop = h(
+  const dropzone = h(
     "div",
-    { class: "drop" },
-    h("div", { class: "drop-icon" }, icon("folderIn")),
-    h("div", { class: "drop-text" }, title, hint, progress),
-    h("div", { class: "drop-actions" }, h("label", { class: "btn btn-plain", for: "files" }, "Pilih berkas"), input, submit),
+    { class: "dropzone" },
+    h("div", { class: "dropzone-icon" }, icon("uploadTray")),
+    h("div", { class: "dropzone-text" }, title, hint, progress),
+    h("div", { class: "dropzone-actions" }, h("label", { class: "btn btn-plain", for: "files" }, "Pilih berkas"), input, submit),
   );
 
   const form = h(
     "form",
-    { class: "folder", "aria-label": "Unggah berkas" },
-    h("div", { class: "folder-tab", "aria-hidden": "true" }, "Unggah berkas"),
-    drop,
+    { class: "upload-panel", "aria-label": "Unggah berkas" },
+    h("div", { class: "upload-tab", "aria-hidden": "true" }, "Unggah berkas"),
+    dropzone,
   );
 
   const total = () => selected.reduce((sum, f) => sum + f.size, 0);
@@ -67,18 +67,18 @@ export function createUploader(opts: UploaderOptions): HTMLElement {
   input.addEventListener("change", () => select(input.files));
 
   for (const type of ["dragenter", "dragover"]) {
-    drop.addEventListener(type, (e) => {
+    dropzone.addEventListener(type, (e) => {
       e.preventDefault();
-      drop.classList.add("is-over");
+      dropzone.classList.add("is-over");
     });
   }
   for (const type of ["dragleave", "drop"]) {
-    drop.addEventListener(type, (e) => {
+    dropzone.addEventListener(type, (e) => {
       e.preventDefault();
-      drop.classList.remove("is-over");
+      dropzone.classList.remove("is-over");
     });
   }
-  drop.addEventListener("drop", (e) => select((e as DragEvent).dataTransfer?.files ?? null));
+  dropzone.addEventListener("drop", (e) => select((e as DragEvent).dataTransfer?.files ?? null));
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

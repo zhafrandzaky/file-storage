@@ -1,8 +1,8 @@
 // Custom stroke icons drawn on a 24px grid, 1.6px stroke.
 const paths = {
-  cabinet: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/>',
+  storage: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/>',
   upload: '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/>',
-  folderIn:
+  uploadTray:
     '<path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.5l2 2H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M12 11v5M9.75 13.75 12 16l2.25-2.25"/>',
   search: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/>',
   open: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.75"/>',
@@ -26,8 +26,8 @@ export function icon(name: IconName, className = "icon"): SVGSVGElement {
   return svg;
 }
 
-/** Document sheet with a folded corner; the extension label sits on top. */
-export function docSheet(): SVGSVGElement {
+/** File sheet with a folded corner; the extension label sits on top. */
+export function fileSheet(): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 34 40");
   svg.setAttribute("aria-hidden", "true");

@@ -1,7 +1,7 @@
 import { fileUrl } from "../api";
 import { h } from "../dom";
 import { extensionOf, formatDate, formatSize, kindOf } from "../format";
-import { docSheet, icon } from "../icons";
+import { fileSheet, icon } from "../icons";
 import type { FileList, StoredFile } from "../types";
 
 interface FileTableOptions {
@@ -25,12 +25,12 @@ export function createFileTable(opts: FileTableOptions): FileTable {
     icon("search"),
     searchInput,
   );
-  const body = h("div", { class: "docs-body" });
+  const body = h("div", { class: "file-list-body" });
 
   const el = h(
     "section",
-    { class: "docs", "aria-labelledby": "docs-title" },
-    h("div", { class: "docs-head" }, h("div", {}, h("h2", { id: "docs-title" }, "Berkas"), summary), search),
+    { class: "file-list", "aria-labelledby": "file-list-title" },
+    h("div", { class: "file-list-head" }, h("div", {}, h("h2", { id: "file-list-title" }, "Berkas"), summary), search),
     body,
   );
 
@@ -49,7 +49,7 @@ export function createFileTable(opts: FileTableOptions): FileTable {
   };
   searchInput.addEventListener("input", applySearch);
 
-  const emptyState = (iconName: "cabinet" | "search" | "alert", heading: string, text: string, ...extra: Node[]) =>
+  const emptyState = (iconName: "storage" | "search" | "alert", heading: string, text: string, ...extra: Node[]) =>
     h("div", { class: "empty" }, icon(iconName), h("strong", {}, heading), h("p", {}, text), ...extra);
 
   const row = (f: StoredFile) => {
@@ -66,7 +66,7 @@ export function createFileTable(opts: FileTableOptions): FileTable {
         h(
           "div",
           { class: "name" },
-          h("span", { class: `kind kind-${kindOf(ext)}`, "aria-hidden": "true" }, docSheet(), h("b", {}, ext || "file")),
+          h("span", { class: `kind kind-${kindOf(ext)}`, "aria-hidden": "true" }, fileSheet(), h("b", {}, ext || "file")),
           h(
             "div",
             {},
@@ -112,7 +112,7 @@ export function createFileTable(opts: FileTableOptions): FileTable {
       if (list.files.length === 0) {
         rows = [];
         noMatch = null;
-        body.replaceChildren(emptyState("cabinet", "Belum ada berkas", "Berkas yang Anda unggah akan tampil di sini."));
+        body.replaceChildren(emptyState("storage", "Belum ada berkas", "Berkas yang Anda unggah akan tampil di sini."));
         return;
       }
       rows = list.files.map(row);
